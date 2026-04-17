@@ -1,5 +1,5 @@
 {
-  "name": "mail-app",
+  "name": "Finnmail",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -22,4 +22,7 @@
     "nodemailer": "^8.0.5",
     "sqlite3": "^6.0.1"
   }
+}
+"scripts": {
+  "start": "node server.js"
 }
