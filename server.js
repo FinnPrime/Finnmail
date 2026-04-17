@@ -180,6 +180,8 @@ app.post("/send-local", requireAuth, csrfProtection, (req, res) => {
   const { to, subject, text } = req.body;
   const from = req.session.user.username;
 
+  console.log("SEND DATA:", { from, to, subject, text });
+
   if (!to || !subject || !text) {
     return res.status(400).send("Нет данных");
   }
@@ -189,6 +191,7 @@ app.post("/send-local", requireAuth, csrfProtection, (req, res) => {
     [to],
     (userErr, targetUser) => {
       if (userErr) {
+        console.error("USER CHECK ERROR:", userErr.message);
         return res.status(500).send("Ошибка сервера");
       }
 
@@ -201,6 +204,7 @@ app.post("/send-local", requireAuth, csrfProtection, (req, res) => {
         [from, to, subject, text],
         (msgErr) => {
           if (msgErr) {
+            console.error("MESSAGE INSERT ERROR:", msgErr.message);
             return res.status(500).send("Ошибка отправки");
           }
 
