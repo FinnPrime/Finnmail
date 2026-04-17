@@ -3,42 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inbox</title>
+  <title>Finnmail</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div class="page">
-    <div class="topbar">
-      <div>
-        <h1>Моя почта</h1>
-        <p class="subtitle">Просмотр сообщений и отправка новых</p>
-      </div>
-
-      <div style="display:flex; gap:12px; align-items:center;">
-        <div id="user" class="user-badge"></div>
+  <div class="app">
+    <div class="sidebar">
+      <h2>📧 Finnmail</h2>
+      <button class="btn-primary" id="newMessageBtn">+ Новое сообщение</button>
+      <hr style="margin:20px 0; border-color:#374151;">
+      <div id="conversationList"></div>
+      <div style="margin-top:40px;">
         <button id="logout" class="btn-secondary">Выйти</button>
       </div>
     </div>
 
-    <div class="layout">
-      <div class="card">
-        <h2>Новое сообщение</h2>
-        <div class="form-block">
-          <input id="to" placeholder="Кому" />
-          <textarea id="text" placeholder="Напиши сообщение"></textarea>
-          <button id="send" class="btn-primary">Отправить</button>
-        </div>
+    <div class="content">
+      <div class="header">
+        <h3 id="chatTitle">Переписка</h3>
+        <div id="user" class="user-badge"></div>
       </div>
 
-      <div>
-        <h2 style="margin-bottom:16px;">Входящие</h2>
-        <ul id="messages" class="messages-list"></ul>
+      <div class="mail-body">
+        <div id="newMessageBox" class="compose-box" style="display:none;">
+          <input id="to" placeholder="Кому" />
+          <br><br>
+          <input id="subject" placeholder="Тема" />
+          <br><br>
+          <textarea id="text" placeholder="Сообщение"></textarea>
+          <br><br>
+          <button id="send" class="btn-primary">Отправить</button>
+        </div>
+
+        <div id="chatMessages" class="messages-list"></div>
       </div>
     </div>
   </div>
 
   <script>
     let csrfToken = "";
+    let currentChatUser = null;
 
     async function loadCsrfToken() {
       const res = await fetch("/csrf-token");
@@ -48,7 +52,6 @@
 
     async function checkAuth() {
       const res = await fetch("/me");
-
       if (!res.ok) {
         window.location.href = "/login.html";
         return;
@@ -56,34 +59,65 @@
 
       const data = await res.json();
       document.getElementById("user").innerText = data.user.username;
-      loadMessages();
     }
 
-    async function loadMessages() {
-      const res = await fetch("/inbox");
-      const messages = await res.json();
+    async function loadConversations() {
+      const res = await fetch("/conversations");
+      const conversations = await res.json();
 
-      const list = document.getElementById("messages");
+      const list = document.getElementById("conversationList");
       list.innerHTML = "";
 
-      if (!messages.length) {
-        list.innerHTML = '<div class="empty">Пока нет входящих сообщений</div>';
+      if (!conversations.length) {
+        list.innerHTML = "<p>Нет переписок</p>";
         return;
       }
 
-      messages.forEach((msg) => {
-        const li = document.createElement("li");
-        li.className = "message-item";
-        li.innerHTML = `
-          <div class="message-from">От: ${msg.from_user}</div>
-          <div class="message-text">${msg.text}</div>
-        `;
-        list.appendChild(li);
+      conversations.forEach(conv => {
+        const div = document.createElement("div");
+        div.className = "mail-item";
+        div.style.marginBottom = "10px";
+        div.innerText = conv.username;
+        div.onclick = () => openConversation(conv.username);
+        list.appendChild(div);
       });
     }
 
+    async function openConversation(username) {
+      currentChatUser = username;
+      document.getElementById("chatTitle").innerText = "Чат с " + username;
+
+      const res = await fetch("/conversation/" + username);
+      const messages = await res.json();
+
+      const box = document.getElementById("chatMessages");
+      box.innerHTML = "";
+
+      if (!messages.length) {
+        box.innerHTML = '<div class="empty">Нет сообщений</div>';
+        return;
+      }
+
+      messages.forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "message-item";
+        div.innerHTML = `
+          <div class="message-from">${msg.from_user}</div>
+          <div><b>${msg.subject || "(без темы)"}</b></div>
+          <div class="message-text">${msg.text}</div>
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    document.getElementById("newMessageBtn").onclick = () => {
+      const box = document.getElementById("newMessageBox");
+      box.style.display = box.style.display === "none" ? "block" : "none";
+    };
+
     document.getElementById("send").onclick = async () => {
       const to = document.getElementById("to").value;
+      const subject = document.getElementById("subject").value;
       const text = document.getElementById("text").value;
 
       const res = await fetch("/send-local", {
@@ -92,7 +126,7 @@
           "Content-Type": "application/json",
           "CSRF-Token": csrfToken
         },
-        body: JSON.stringify({ to, text })
+        body: JSON.stringify({ to, subject, text })
       });
 
       const answer = await res.text();
@@ -100,8 +134,14 @@
 
       if (res.ok) {
         document.getElementById("to").value = "";
+        document.getElementById("subject").value = "";
         document.getElementById("text").value = "";
-        loadMessages();
+
+        await loadConversations();
+
+        if (currentChatUser === to) {
+          await openConversation(to);
+        }
       } else if (res.status === 403) {
         await loadCsrfToken();
       }
@@ -121,6 +161,7 @@
     async function init() {
       await loadCsrfToken();
       await checkAuth();
+      await loadConversations();
     }
 
     init();

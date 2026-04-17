@@ -287,3 +287,12 @@ button {
 .mail-item:hover {
   background: #f9fafb;
 }
+#conversationList .mail-item {
+  background: #374151;
+  color: white;
+  border: none;
+}
+
+#conversationList .mail-item:hover {
+  background: #4b5563;
+}

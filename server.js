@@ -177,10 +177,10 @@ app.post("/logout", csrfProtection, (req, res) => {
 });
 
 app.post("/send-local", requireAuth, csrfProtection, (req, res) => {
-  const { to, text } = req.body;
+  const { to, subject, text } = req.body;
   const from = req.session.user.username;
 
-  if (!to || !text) {
+  if (!to || !subject || !text) {
     return res.status(400).send("Нет данных");
   }
 
@@ -197,8 +197,8 @@ app.post("/send-local", requireAuth, csrfProtection, (req, res) => {
       }
 
       db.run(
-        "INSERT INTO messages (from_user, to_user, text) VALUES (?, ?, ?)",
-        [from, to, text],
+        "INSERT INTO messages (from_user, to_user, subject, text) VALUES (?, ?, ?, ?)",
+        [from, to, subject, text],
         (msgErr) => {
           if (msgErr) {
             return res.status(500).send("Ошибка отправки");
@@ -226,7 +226,50 @@ app.get("/inbox", requireAuth, (req, res) => {
     }
   );
 });
+app.get("/conversation/:username", requireAuth, (req, res) => {
+  const currentUser = req.session.user.username;
+  const otherUser = req.params.username;
 
+  db.all(
+    `SELECT id, from_user, to_user, subject, text
+     FROM messages
+     WHERE (from_user = ? AND to_user = ?)
+        OR (from_user = ? AND to_user = ?)
+     ORDER BY id ASC`,
+    [currentUser, otherUser, otherUser, currentUser],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json([]);
+      }
+
+      res.json(rows);
+    }
+  );
+});
+app.get("/conversations", requireAuth, (req, res) => {
+  const currentUser = req.session.user.username;
+
+  db.all(
+    `SELECT 
+        CASE
+          WHEN from_user = ? THEN to_user
+          ELSE from_user
+        END AS username,
+        MAX(id) as last_message_id
+     FROM messages
+     WHERE from_user = ? OR to_user = ?
+     GROUP BY username
+     ORDER BY last_message_id DESC`,
+    [currentUser, currentUser, currentUser],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json([]);
+      }
+
+      res.json(rows);
+    }
+  );
+});
 app.use((err, req, res, next) => {
   if (err.code === "EBADCSRFTOKEN") {
     return res.status(403).send("Неверный CSRF токен");
