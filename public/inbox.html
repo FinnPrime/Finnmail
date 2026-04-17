@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inbox</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div>
+        <h1>Моя почта</h1>
+        <p class="subtitle">Просмотр сообщений и отправка новых</p>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div id="user" class="user-badge"></div>
+        <button id="logout" class="btn-secondary">Выйти</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <h2>Новое сообщение</h2>
+        <div class="form-block">
+          <input id="to" placeholder="Кому" />
+          <textarea id="text" placeholder="Напиши сообщение"></textarea>
+          <button id="send" class="btn-primary">Отправить</button>
+        </div>
+      </div>
+
+      <div>
+        <h2 style="margin-bottom:16px;">Входящие</h2>
+        <ul id="messages" class="messages-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let csrfToken = "";
+
+    async function loadCsrfToken() {
+      const res = await fetch("/csrf-token");
+      const data = await res.json();
+      csrfToken = data.csrfToken;
+    }
+
+    async function checkAuth() {
+      const res = await fetch("/me");
+
+      if (!res.ok) {
+        window.location.href = "/login.html";
+        return;
+      }
+
+      const data = await res.json();
+      document.getElementById("user").innerText = data.user.username;
+      loadMessages();
+    }
+
+    async function loadMessages() {
+      const res = await fetch("/inbox");
+      const messages = await res.json();
+
+      const list = document.getElementById("messages");
+      list.innerHTML = "";
+
+      if (!messages.length) {
+        list.innerHTML = '<div class="empty">Пока нет входящих сообщений</div>';
+        return;
+      }
+
+      messages.forEach((msg) => {
+        const li = document.createElement("li");
+        li.className = "message-item";
+        li.innerHTML = `
+          <div class="message-from">От: ${msg.from_user}</div>
+          <div class="message-text">${msg.text}</div>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById("send").onclick = async () => {
+      const to = document.getElementById("to").value;
+      const text = document.getElementById("text").value;
+
+      const res = await fetch("/send-local", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": csrfToken
+        },
+        body: JSON.stringify({ to, text })
+      });
+
+      const answer = await res.text();
+      alert(answer);
+
+      if (res.ok) {
+        document.getElementById("to").value = "";
+        document.getElementById("text").value = "";
+        loadMessages();
+      } else if (res.status === 403) {
+        await loadCsrfToken();
+      }
+    };
+
+    document.getElementById("logout").onclick = async () => {
+      await fetch("/logout", {
+        method: "POST",
+        headers: {
+          "CSRF-Token": csrfToken
+        }
+      });
+
+      window.location.href = "/login.html";
+    };
+
+    async function init() {
+      await loadCsrfToken();
+      await checkAuth();
+    }
+
+    init();
+  </script>
+</body>
+</html>

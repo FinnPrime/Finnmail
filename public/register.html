@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Регистрация</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="card auth-card">
+      <h1>Регистрация</h1>
+      <p class="subtitle">Создай новый аккаунт</p>
+
+      <form id="registerForm">
+        <input id="username" type="text" placeholder="Логин" required />
+        <input id="password" type="password" placeholder="Пароль" required />
+        <button class="btn-primary" type="submit">Создать аккаунт</button>
+      </form>
+
+      <p id="result" class="result"></p>
+
+      <p class="link-line">
+        Уже есть аккаунт? <a href="/login.html">Войти</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    let csrfToken = "";
+
+    async function loadCsrfToken() {
+      const res = await fetch("/csrf-token");
+      const data = await res.json();
+      csrfToken = data.csrfToken;
+    }
+
+    document.getElementById("registerForm").onsubmit = async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const res = await fetch("/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": csrfToken
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      const text = await res.text();
+      document.getElementById("result").innerText = text;
+
+      if (res.ok) {
+        setTimeout(() => {
+          window.location.href = "/login.html";
+        }, 1000);
+      } else if (res.status === 403) {
+        await loadCsrfToken();
+      }
+    };
+
+    loadCsrfToken();
+  </script>
+</body>
+</html>
