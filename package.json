@@ -1,10 +1,9 @@
 {
-  "name": "Finnmail",
+  "name": "finnmail",
   "version": "1.0.0",
-  "description": "",
+  "description": "Finnmail project",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
   "keywords": [],
@@ -15,14 +14,10 @@
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "csurf": "^1.11.0",
-    "db": "^6.0.3",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "nodemailer": "^8.0.5",
     "sqlite3": "^6.0.1"
   }
-}
-"scripts": {
-  "start": "node server.js"
 }
